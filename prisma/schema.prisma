@@ -1,0 +1,120 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionStatus {
+  DISCONNECTED
+  CONNECTING
+  QR_PENDING
+  CONNECTED
+  LOGGED_OUT
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  NO_SHOW
+}
+
+enum ChatStep {
+  IDLE
+  MAIN_MENU
+  AWAITING_DATE_SELECTION
+  AWAITING_TIME_SELECTION
+  AWAITING_NAME
+  AWAITING_CONFIRMATION
+  AWAITING_RESCHEDULE_TIME
+  AWAITING_REMINDER_RESPONSE
+  AWAITING_WAITLIST_RESPONSE
+  BOOKED
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  CLAIMED
+  EXPIRED
+  CANCELLED
+}
+
+model Clinic {
+  id             String        @id @default(uuid())
+  name           String
+  phoneNumber    String        @unique @map("phone_number")
+  sessionStatus  SessionStatus @default(DISCONNECTED) @map("session_status")
+  workingHours   Json          @map("working_hours")
+  slotDurationMinutes Int      @default(30) @map("slot_duration_minutes")
+  timezone       String        @default("Africa/Cairo")
+  defaultPrice   Float         @default(0) @map("default_price")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+
+  appointments   Appointment[]
+  chatStates     ChatState[]
+  waitlistEntries Waitlist[]
+
+  @@map("clinics")
+}
+
+model Appointment {
+  id               String             @id @default(uuid())
+  clinicId         String             @map("clinic_id")
+  clinic           Clinic             @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientPhone     String             @map("patient_phone")
+  patientName      String             @map("patient_name")
+  appointmentTime  DateTime           @map("appointment_time")
+  status           AppointmentStatus  @default(PENDING)
+  reminderDaySent  Boolean            @default(false) @map("reminder_day_sent")
+  reminder2hSent   Boolean            @default(false) @map("reminder_2h_sent")
+  price            Float?             @map("price")
+  notes            String?
+  createdAt        DateTime           @default(now()) @map("created_at")
+  updatedAt        DateTime           @updatedAt @map("updated_at")
+
+  // Prevent double-booking the exact same slot for the same clinic
+  @@unique([clinicId, appointmentTime], name: "clinic_slot_unique")
+  @@index([clinicId, appointmentTime])
+  @@index([patientPhone])
+  @@map("appointments")
+}
+
+model ChatState {
+  id           String   @id @default(uuid())
+  patientPhone String   @map("patient_phone")
+  clinicId     String   @map("clinic_id")
+  clinic       Clinic   @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  currentStep  ChatStep @default(IDLE) @map("current_step")
+  metadata     Json     @default("{}")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@unique([patientPhone, clinicId])
+  @@map("chat_states")
+}
+
+model Waitlist {
+  id                 String         @id @default(uuid())
+  clinicId           String         @map("clinic_id")
+  clinic             Clinic         @relation(fields: [clinicId], references: [id], onDelete: Cascade)
+  patientPhone       String         @map("patient_phone")
+  patientName        String         @map("patient_name")
+  desiredDate        DateTime       @map("desired_date")
+  status             WaitlistStatus @default(WAITING)
+  notifiedAt         DateTime?      @map("notified_at")
+  expiresAt          DateTime?      @map("expires_at")
+  offeredAppointmentId String?      @map("offered_appointment_id")
+  offeredSlotTime    DateTime?      @map("offered_slot_time")
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  @@index([clinicId, desiredDate, status])
+  @@index([patientPhone])
+  @@map("waitlist")
+}
