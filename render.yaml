@@ -1,23 +1,27 @@
 services:
-  # Backend API
   - type: web
     name: clinics-pro-backend
     runtime: node
+    env: node
+    region: frankfurt
+    plan: free
     buildCommand: npm install && npx prisma generate
-    startCommand: npm start
+    startCommand: node src/server.js
     envVars:
-      - key: NODE_ENV
-        value: production
+      - key: NODE_VERSION
+        value: 20.11.0
       - key: DATABASE_URL
         fromDatabase:
-          name: clinics-db
+          name: clinics-pro-db
           property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
       - key: PORT
         value: 4000
-    healthCheckPath: /
 
-  # PostgreSQL Database
 databases:
-  - name: clinics-db
-    databaseName: clinic_whatsapp
-    user: clinic_user
+  - name: clinics-pro-db
+    region: frankfurt
+    plan: free
+    databaseName: clinics_pro
+    user: clinics_pro_user
