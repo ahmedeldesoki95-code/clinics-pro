@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "npm ci --only=production && npx prisma generate && npx prisma migrate deploy"
+buildCommand = "npm ci --omit=dev && npx prisma generate && npx prisma migrate deploy"
 
 [deploy]
 numReplicas = 1
